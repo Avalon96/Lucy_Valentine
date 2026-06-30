@@ -22,17 +22,20 @@ ALLOWED_ROLES = ("Uma Musume Vice Pope", "The Island Owner")
 async def command(ctx, name: str, *, response: str):
 
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        sent_message = await ctx.send("Only Uma Musume Vice Popes and The Island Owner can use this command.")
+        sent_message = await ctx.send("Only The Island Owner and Uma Musume Vice Popes can use this command.")
         await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
         return
 
-    custom_commands[name] = response
-    await ctx.send(f"Saved command `{name}` → `{response}`")
+    if (name.startswith("!")):
+        custom_commands[name] = response
+        await ctx.send(f"Saved command `{name}` → `{response}`")
+    else:
+        await ctx.send("Command name must start with `!`")
 
 @bot.command(name="del")
 async def delete_command(ctx, name: str):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        sent_message = await ctx.send("Only Uma Musume Vice Popes and The Island Owner can use this command.")
+        sent_message = await ctx.send("Only The Island Owner and Uma Musume Vice Popes can use this command.")
         await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
         return
 
