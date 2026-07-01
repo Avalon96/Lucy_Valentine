@@ -108,6 +108,118 @@ async def allcmd(ctx):
     await ctx.send(embed=embed)
 
 
+# !batch
+@bot.command()
+async def batch(ctx, *, bulk_input: str):
+    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
+        sent_message = await ctx.send(
+            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
+        )
+        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
+        return
+
+    lines = bulk_input.strip().splitlines()
+    added = []
+    skipped = []
+    invalid = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(maxsplit=1)
+        if len(parts) != 2:
+            invalid.append(line)
+            continue
+        name, response = parts
+        if not name.startswith("!"):
+            invalid.append(line)
+            continue
+        if name in custom_commands:
+            skipped.append(name)
+            continue
+        custom_commands[name] = response
+        added.append(name)
+
+    if added:
+        save_commands()
+
+    result = []
+    if added:
+        result.append(f"Added ({len(added)}): {', '.join(added)}")
+    if skipped:
+        result.append(f"Skipped, already exist ({len(skipped)}): {', '.join(skipped)}")
+    if invalid:
+        result.append(f"Invalid lines ({len(invalid)}): {', '.join(invalid)}")
+
+    await ctx.send("\n".join(result) if result else "Nothing to add.")
+
+
+# !json
+@bot.command(name="json")
+async def import_commands(ctx, *, json_input: str = None):
+    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
+        sent_message = await ctx.send(
+            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
+        )
+        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
+        return
+
+    # Support either a pasted JSON string or an attached .json file
+    raw_data = None
+    if ctx.message.attachments:
+        attachment = ctx.message.attachments[0]
+        if not attachment.filename.endswith(".json"):
+            await ctx.send("Attached file must be a `.json` file.")
+            return
+        raw_data = (await attachment.read()).decode("utf-8")
+    elif json_input:
+        raw_data = json_input
+    else:
+        await ctx.send("Provide JSON as text after the command, or attach a `.json` file.")
+        return
+
+    try:
+        imported = json.loads(raw_data)
+    except json.JSONDecodeError as e:
+        await ctx.send(f"Invalid JSON: {e}")
+        return
+
+    if not isinstance(imported, dict):
+        await ctx.send("JSON must be an object of `\"!name\": \"response\"` pairs.")
+        return
+
+    added = []
+    skipped = []
+    invalid = []
+
+    for name, response in imported.items():
+        if not isinstance(name, str) or not isinstance(response, str):
+            invalid.append(str(name))
+            continue
+        if not name.startswith("!"):
+            invalid.append(name)
+            continue
+        if name in custom_commands:
+            skipped.append(name)
+            continue
+        custom_commands[name] = response
+        added.append(name)
+
+    if added:
+        save_commands()
+
+    result = []
+    if added:
+        result.append(f"Added ({len(added)}): {', '.join(added)}")
+    if skipped:
+        result.append(f"Skipped, already exist ({len(skipped)}): {', '.join(skipped)}")
+    if invalid:
+        result.append(f"Invalid entries ({len(invalid)}): {', '.join(invalid)}")
+
+    await ctx.send("\n".join(result) if result else "Nothing to import.")
+
+
 # Send command
 @bot.event
 async def on_message(message):
