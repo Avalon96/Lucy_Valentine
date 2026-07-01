@@ -60,7 +60,8 @@ async def on_raw_reaction_add(payload):
 
     if payload.user_id == NUWA_USER_ID:
         await channel.send(f"{user.mention}")
-        await channel.send("!soraslap")
+        if "!soraslap" in custom_commands:
+            await channel.send(custom_commands["!soraslap"])
         return
 
     if user is None:
@@ -74,6 +75,8 @@ def load_commands():
     if os.path.exists(COMMANDS_FILE):
         with open(COMMANDS_FILE, "r") as f:
             return json.load(f)
+    with open(COMMANDS_FILE, "w") as f:
+        json.dump({}, f)
     return {}
 
 
@@ -282,8 +285,8 @@ async def import_commands(ctx, *, json_input: str = None):
 # Send command
 @bot.event
 async def on_message(message):
-    # if message.author.bot:
-    #     return
+    if message.author.bot:
+        return
 
     content = message.content
 
