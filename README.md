@@ -39,7 +39,7 @@ Possible interactions Lucy will respond to are:
 
 ---
 ## Cringe Functionality
-When a user is on the Cringe List, the bot alters its response behavior toward them.
+When a user is on the Cringe List, Lucy alters its response behavior toward them.
 
 ### Add to Cringe List
 ```!cringe <Display Name/Username/User ID>```
