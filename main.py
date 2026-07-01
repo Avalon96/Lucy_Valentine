@@ -21,6 +21,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 COMMANDS_FILE = "custom_commands.json"
 
 
+# JSON
 def load_commands():
     if os.path.exists(COMMANDS_FILE):
         with open(COMMANDS_FILE, "r") as f:
@@ -30,13 +31,29 @@ def load_commands():
 
 def save_commands():
     with open(COMMANDS_FILE, "w") as f:
-        json.dump(custom_commands, f)
+        json.dump(custom_commands, f, indent=4)
 
 
 custom_commands = load_commands()
 ALLOWED_ROLES = ("The Island Owner", "Uma Musume Vice Pope")
 
 
+# Export JSON
+@bot.command()
+async def export(ctx):
+    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
+        sent_message = await ctx.send(
+            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
+        )
+        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
+        return
+    if not os.path.exists(COMMANDS_FILE):
+        await ctx.send("No commands file found yet.")
+        return
+    await ctx.send(file=discord.File(COMMANDS_FILE))
+
+
+# !command
 @bot.command()
 async def command(ctx, name: str, *, response: str):
 
@@ -50,13 +67,15 @@ async def command(ctx, name: str, *, response: str):
         await ctx.send("Command name must start with `!`")
         return
     if (name.startswith("!")):
+        if name in custom_commands:
+            await ctx.send(f"Command `{name}` already exists.")
+            return
         custom_commands[name] = response
         save_commands()
         await ctx.send(f"Saved command `{name}` → `{response}`")
-    else:
-        await ctx.send("Command name must start with `!`")
 
 
+# !del
 @bot.command(name="del")
 async def delete_command(ctx, name: str):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
@@ -77,6 +96,19 @@ async def delete_command(ctx, name: str):
         await ctx.send(f"Command `{name}` not found")
 
 
+# !allcmd
+@bot.command()
+async def allcmd(ctx):
+    sorted_commands = sorted(custom_commands.keys())
+    embed = discord.Embed(
+        title="All Commands",
+        description="\n".join(sorted_commands),
+        colour=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+
+
+# Send command
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -92,6 +124,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+# Check bot online
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
