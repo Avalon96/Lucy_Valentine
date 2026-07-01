@@ -21,18 +21,34 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 ALLOWED_ROLES = ("The Island Owner", "Uma Musume Vice Pope")
-RESERVED_COMMANDS = {"!cmd", "!batch", "!del", "!allcmd", "!export", "!json"}
+RESERVED_COMMANDS = {
+    "!cmd",
+    "!batch",
+    "!del",
+    "!allcmd",
+    "!export",
+    "!json",
+    "!cringe",
+    "!uncringe",
+    "!allcringe"
+}
 COMMANDS_FILE = "custom_commands.json"
+CRINGE_FILE = "cringe_list.json"
 PAT_LUCY = "<a:LucyPat:1521201578474737754>"
 HEART = "❤️"
 
 DISGUST_MELU = "<:MelusineDisgust:1521196798046109769>"
 SORA_UNAMUSED = "<a:SoraUnamused:1521201633961181405>"
-NUWA_USER_ID = 1299685090909225044
+
+
+# # DEBUG
+# @bot.event
+# async def on_command_error(ctx, error):
+#     await ctx.send(f"Error: {error}")
+
 
 # Reaction Event
 triggered_reactions = set()
-
 
 @bot.event
 async def on_raw_reaction_add(payload):
@@ -58,7 +74,7 @@ async def on_raw_reaction_add(payload):
 
     user = payload.member
 
-    if payload.user_id == NUWA_USER_ID:
+    if payload.user_id in cringe_list:
         await channel.send(f"{user.mention}")
         if "!soraslap" in custom_commands:
             await channel.send(custom_commands["!soraslap"])
@@ -70,7 +86,7 @@ async def on_raw_reaction_add(payload):
     await channel.send(f"{user.mention} {HEART}")
 
 
-# JSON
+# Command JSON
 def load_commands():
     if os.path.exists(COMMANDS_FILE):
         with open(COMMANDS_FILE, "r") as f:
@@ -84,14 +100,28 @@ def save_commands():
     with open(COMMANDS_FILE, "w") as f:
         json.dump(custom_commands, f, indent=4)
 
-
 custom_commands = load_commands()
+
+
+# Cringe List JSON
+def load_cringe_list():
+    if os.path.exists(CRINGE_FILE):
+        with open(CRINGE_FILE, "r") as f:
+            return json.load(f)
+    with open(CRINGE_FILE, "w") as f:
+        json.dump([], f)
+    return []
+
+def save_cringe_list():
+    with open(CRINGE_FILE, "w") as f:
+        json.dump(cringe_list, f, indent=4)
+
+cringe_list = load_cringe_list()
 
 
 # !cmd
 @bot.command(name="cmd")
 async def add_command(ctx, name: str, *, response: str):
-
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         sent_message = await ctx.send(
             f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
@@ -282,6 +312,51 @@ async def import_commands(ctx, *, json_input: str = None):
     await ctx.send("\n".join(result) if result else "Nothing to import.")
 
 
+# !cringe
+@bot.command(name="cringe")
+async def add_to_cringe_list(ctx, *, member: discord.Member):
+    if member.id not in cringe_list:
+        cringe_list.append(member.id)
+        save_cringe_list()
+        await ctx.send(f"{member.display_name} added to cringe list.",
+                       allowed_mentions=discord.AllowedMentions(users=False))
+    else:
+        await ctx.send(f"{member.display_name} is already in the cringe list.",
+                       allowed_mentions=discord.AllowedMentions(users=False))
+
+
+# !uncringe
+@bot.command(name="uncringe")
+async def remove_from_cringe_list(ctx, *, member: discord.Member):
+    if member.id in cringe_list:
+        cringe_list.remove(member.id)
+        save_cringe_list()
+        await ctx.send(f"{member.display_name} removed from cringe list.",
+                       allowed_mentions=discord.AllowedMentions(users=False))
+    else:
+        await ctx.send(f"{member.display_name} is not in the cringe list.",
+                       allowed_mentions=discord.AllowedMentions(users=False))
+
+
+# !allcringe
+@bot.command(name="allcringe")
+async def show_cringe_list(ctx):
+    names = []
+    for user_id in cringe_list:
+        user = await bot.fetch_user(user_id)
+        names.append(user.display_name)
+
+    sorted_names = sorted(names)
+
+    embed = discord.Embed(
+        title=f"Cringe List ({len(sorted_names)})",
+        description="\n".join(sorted_names) if sorted_names else "No one yet.",
+        colour=discord.Color.blue()
+    )
+
+    await ctx.send(embed=embed)
+
+
 # Send command
 @bot.event
 async def on_message(message):
@@ -291,14 +366,14 @@ async def on_message(message):
     content = message.content
 
     if PAT_LUCY in content:
-        if message.author.id == NUWA_USER_ID:
+        if message.author.id in cringe_list:
             await message.add_reaction(DISGUST_MELU)
         else:
             await message.add_reaction(HEART)
         return
 
     if content in custom_commands:
-        if message.author.id == NUWA_USER_ID:
+        if message.author.id in cringe_list:
             await message.add_reaction(SORA_UNAMUSED)
         else:
             sent_message = await message.channel.send(custom_commands[content])
@@ -309,7 +384,6 @@ async def on_message(message):
 
 # Auto Export JSON
 EXPORT_CHANNEL_ID = 1521643823644803234
-
 
 @tasks.loop(hours=24)
 async def auto_export():
@@ -322,7 +396,6 @@ async def auto_export():
     await channel.send("Here is your JSON file master ❤️")
     await channel.send(file=discord.File(COMMANDS_FILE))
 
-
 @auto_export.before_loop
 async def before_auto_export():
     await bot.wait_until_ready()
@@ -334,5 +407,6 @@ async def on_ready():
     print(f"Logged in as {bot.user.name}")
     if not auto_export.is_running():
         auto_export.start()
+
 
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)

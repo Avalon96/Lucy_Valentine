@@ -2,4 +2,4 @@
 __pycache__/
 *.pyc
 discord.log
-custom_commands.json
+*.json
