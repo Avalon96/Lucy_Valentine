@@ -317,7 +317,7 @@ async def import_commands(ctx, *, json_input: str = None):
 @bot.command(name="cringe")
 async def add_to_cringe_list(ctx, *, member: discord.Member):
     if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
-        await ctx.send(f"Only {OVERLORD_ROLE} can declare someone as cringe.")
+        await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")
         return
     if member.id not in cringe_list:
         cringe_list.append(member.id)
@@ -333,7 +333,7 @@ async def add_to_cringe_list(ctx, *, member: discord.Member):
 @bot.command(name="uncringe")
 async def remove_from_cringe_list(ctx, *, member: discord.Member):
     if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
-        await ctx.send(f"Only {OVERLORD_ROLE} can declare someone as not cringe anymore.")
+        await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")
         return
     if member.id in cringe_list:
         cringe_list.remove(member.id)
