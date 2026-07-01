@@ -45,3 +45,8 @@ When a user is on the Cringe List, the bot alters its response behavior toward t
 ```!allcringe```
 
 ---
+## Interacting with Lucy
+Possible interactions Lucy will respond to are:
+* Reacting to her messages with LucyPat
+* Sending LucyPat in a message
+---
