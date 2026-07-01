@@ -20,7 +20,53 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+ALLOWED_ROLES = ("The Island Owner", "Uma Musume Vice Pope")
+RESERVED_COMMANDS = {"!cmd", "!batch", "!del", "!allcmd", "!export", "!json"}
 COMMANDS_FILE = "custom_commands.json"
+PAT_LUCY = "<a:LucyPat:1521201578474737754>"
+HEART = "❤️"
+
+DISGUST_MELU = "<:MelusineDisgust:1521196798046109769>"
+SORA_UNAMUSED = "<a:SoraUnamused:1521201633961181405>"
+NUWA_USER_ID = 1299685090909225044
+
+# Reaction Event
+triggered_reactions = set()
+
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    if payload.user_id == bot.user.id:
+        return
+
+    if str(payload.emoji) != PAT_LUCY:
+        return
+
+    channel = bot.get_channel(payload.channel_id)
+    if channel is None:
+        return
+
+    message = await channel.fetch_message(payload.message_id)
+    if message.author.id != bot.user.id:
+        return
+
+    key = (payload.user_id, payload.message_id)
+    if key in triggered_reactions:
+        return
+
+    triggered_reactions.add(key)
+
+    user = payload.member
+
+    if payload.user_id == NUWA_USER_ID:
+        await channel.send(f"{user.mention}")
+        await channel.send("!soraslap")
+        return
+
+    if user is None:
+        user = await bot.fetch_user(payload.user_id)
+
+    await channel.send(f"{user.mention} {HEART}")
 
 
 # JSON
@@ -37,84 +83,30 @@ def save_commands():
 
 
 custom_commands = load_commands()
-ALLOWED_ROLES = ("The Island Owner", "Uma Musume Vice Pope")
 
 
-# Export JSON
-@bot.command(name="export")
-async def export_command_json(ctx):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        sent_message = await ctx.send(
-            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
-        )
-        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
-        return
-    if not os.path.exists(COMMANDS_FILE):
-        await ctx.send("No commands file found yet.")
-        return
-    await ctx.send(file=discord.File(COMMANDS_FILE))
-
-
-# !command
-@bot.command()
-async def command(ctx, name: str, *, response: str):
+# !cmd
+@bot.command(name="cmd")
+async def add_command(ctx, name: str, *, response: str):
 
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         sent_message = await ctx.send(
             f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
         )
-        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
         return
     if not name.startswith("!"):
         await ctx.send("Command name must start with `!`")
         return
     if (name.startswith("!")):
+        if name in RESERVED_COMMANDS:
+            await ctx.send(f"`{name}` is a reserved command name.")
+            return
         if name in custom_commands:
             await ctx.send(f"Command `{name}` already exists.")
             return
         custom_commands[name] = response
         save_commands()
         await ctx.send(f"Saved command `{name}` → `{response}`")
-
-
-# !del
-@bot.command(name="del")
-async def delete_command(ctx, name: str):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        sent_message = await ctx.send(
-            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
-        )
-        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
-        return
-
-    if not name.startswith("!"):
-        await ctx.send("Command name must start with `!`")
-        return
-    if name in custom_commands:
-        del custom_commands[name]
-        save_commands()
-        await ctx.send(f"Removed command `{name}`")
-    else:
-        await ctx.send(f"Command `{name}` not found")
-
-
-# !allcmd
-@bot.command()
-async def allcmd(ctx):
-    sorted_commands = sorted(custom_commands.keys())
-    embed = discord.Embed(
-        title=f"All Commands ({len(sorted_commands)})",
-        colour=discord.Color.blue()
-    )
-
-    columns = 3
-    chunk_size = -(-len(sorted_commands) // columns)  # ceiling division
-    chunks = [sorted_commands[i:i + chunk_size] for i in range(0, len(sorted_commands), chunk_size)]
-
-    for chunk in chunks:
-        embed.add_field(name="\u200b", value="\n".join(chunk), inline=True)
-
-    await ctx.send(embed=embed)
 
 
 # !batch
@@ -124,7 +116,6 @@ async def batch_add_commands(ctx, *, bulk_input: str):
         sent_message = await ctx.send(
             f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
         )
-        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
         return
 
     lines = bulk_input.strip().splitlines()
@@ -144,6 +135,9 @@ async def batch_add_commands(ctx, *, bulk_input: str):
         if not name.startswith("!"):
             invalid.append(line)
             continue
+        if name in RESERVED_COMMANDS:
+            await ctx.send(f"`{name}` is a reserved command name.")
+            return
         if name in custom_commands:
             skipped.append(name)
             continue
@@ -164,6 +158,60 @@ async def batch_add_commands(ctx, *, bulk_input: str):
     await ctx.send("\n".join(result) if result else "Nothing to add.")
 
 
+# !del
+@bot.command(name="del")
+async def delete_command(ctx, name: str):
+    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
+        sent_message = await ctx.send(
+            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
+        )
+        return
+
+    if not name.startswith("!"):
+        await ctx.send("Command name must start with `!`")
+        return
+    if name in custom_commands:
+        del custom_commands[name]
+        save_commands()
+        await ctx.send(f"Removed command `{name}`")
+    else:
+        await ctx.send(f"Command `{name}` not found")
+
+
+# !allcmd
+@bot.command(name="allcmd")
+async def show_commands(ctx):
+    sorted_commands = sorted(custom_commands.keys())
+    embed = discord.Embed(
+        title=f"All Commands ({len(sorted_commands)})",
+        colour=discord.Color.blue()
+    )
+
+    columns = 3
+    chunk_size = -(-len(sorted_commands) // columns)  # ceiling division
+    chunks = [sorted_commands[i:i + chunk_size] for i in range(0, len(sorted_commands), chunk_size)]
+
+    for chunk in chunks:
+        embed.add_field(name="\u200b", value="\n".join(chunk), inline=True)
+
+    await ctx.send(embed=embed)
+
+
+# !export
+@bot.command(name="export")
+async def export_command_json(ctx):
+    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
+        sent_message = await ctx.send(
+            f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
+        )
+        return
+    if not os.path.exists(COMMANDS_FILE):
+        await ctx.send("No commands file found yet.")
+        return
+    await ctx.send("Here is your JSON file master ❤️")
+    await ctx.send(file=discord.File(COMMANDS_FILE))
+
+
 # !json
 @bot.command(name="json")
 async def import_commands(ctx, *, json_input: str = None):
@@ -171,7 +219,6 @@ async def import_commands(ctx, *, json_input: str = None):
         sent_message = await ctx.send(
             f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
         )
-        await sent_message.add_reaction("<:LucyPat:1521635572907774072>")
         return
 
     # Support either a pasted JSON string or an attached .json file
@@ -209,6 +256,9 @@ async def import_commands(ctx, *, json_input: str = None):
         if not name.startswith("!"):
             invalid.append(name)
             continue
+        if name in RESERVED_COMMANDS:
+            await ctx.send(f"`{name}` is a reserved command name.")
+            return
         if name in custom_commands:
             skipped.append(name)
             continue
@@ -232,14 +282,23 @@ async def import_commands(ctx, *, json_input: str = None):
 # Send command
 @bot.event
 async def on_message(message):
-    if message.author.bot:
-        return
+    # if message.author.bot:
+    #     return
 
     content = message.content
 
+    if PAT_LUCY in content:
+        if message.author.id == NUWA_USER_ID:
+            await message.add_reaction(DISGUST_MELU)
+        else:
+            await message.add_reaction(HEART)
+        return
+
     if content in custom_commands:
-        sent_message = await message.channel.send(custom_commands[content])
-        await sent_message.add_reaction("<a:LucyPat:1521201578474737754>")
+        if message.author.id == NUWA_USER_ID:
+            await message.add_reaction(SORA_UNAMUSED)
+        else:
+            sent_message = await message.channel.send(custom_commands[content])
         return
 
     await bot.process_commands(message)
@@ -257,6 +316,7 @@ async def auto_export():
         return
     if not os.path.exists(COMMANDS_FILE):
         return
+    await channel.send("Here is your JSON file master ❤️")
     await channel.send(file=discord.File(COMMANDS_FILE))
 
 
