@@ -1,6 +1,8 @@
 # Lucy Commands
 
 ## Commands
+### Use command
+```!<command_name>```
 ### Add Command
 ```!cmd !<command_name> <response>```
 
@@ -34,10 +36,10 @@
 When a user is on the Cringe List, the bot alters its response behavior toward them.
 
 ### Add to Cringe List
-```!cringe <Display/User Name>```
+```!cringe <Display Name/Username/User ID>```
 
 ### Remove from Cringe List
-```!uncringe <Display/User Name>```
+```!uncringe <Display Name/Username/User ID>```
 
 ### Show Cringe List
 ```!allcringe```
