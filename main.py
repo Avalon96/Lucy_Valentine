@@ -39,8 +39,8 @@ ALLOWED_ROLES = ("The Island Owner", "Uma Musume Vice Pope")
 
 
 # Export JSON
-@bot.command()
-async def export(ctx):
+@bot.command(name="export")
+async def export_command_json(ctx):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         sent_message = await ctx.send(
             f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
@@ -101,16 +101,23 @@ async def delete_command(ctx, name: str):
 async def allcmd(ctx):
     sorted_commands = sorted(custom_commands.keys())
     embed = discord.Embed(
-        title="All Commands",
-        description="\n".join(sorted_commands),
+        title=f"All Commands ({len(sorted_commands)})",
         colour=discord.Color.blue()
     )
+
+    columns = 3
+    chunk_size = -(-len(sorted_commands) // columns)  # ceiling division
+    chunks = [sorted_commands[i:i + chunk_size] for i in range(0, len(sorted_commands), chunk_size)]
+
+    for chunk in chunks:
+        embed.add_field(name="\u200b", value="\n".join(chunk), inline=True)
+
     await ctx.send(embed=embed)
 
 
 # !batch
-@bot.command()
-async def batch(ctx, *, bulk_input: str):
+@bot.command(name="batch")
+async def batch_add_commands(ctx, *, bulk_input: str):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         sent_message = await ctx.send(
             f"Only {' and '.join(ALLOWED_ROLES)}s can use this command."
