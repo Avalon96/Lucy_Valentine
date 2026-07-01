@@ -4,6 +4,8 @@ import logging
 from dotenv import load_dotenv
 import os
 import json
+from discord.ext import tasks
+
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -243,9 +245,31 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+# Auto Export JSON
+EXPORT_CHANNEL_ID = 1521643823644803234
+
+
+@tasks.loop(hours=24)
+async def auto_export():
+    channel = bot.get_channel(EXPORT_CHANNEL_ID)
+    if channel is None:
+        print("Auto-export channel not found.")
+        return
+    if not os.path.exists(COMMANDS_FILE):
+        return
+    await channel.send(file=discord.File(COMMANDS_FILE))
+
+
+@auto_export.before_loop
+async def before_auto_export():
+    await bot.wait_until_ready()
+
+
 # Check bot online
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
+    if not auto_export.is_running():
+        auto_export.start()
 
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
