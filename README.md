@@ -33,9 +33,9 @@ Possible interactions Lucy will respond to are:
 ```!export```
 
 ### Import Multiple Commands from a JSON File
-```!json (attach JSON file)```
+```!import (attach JSON file)```
 
-```!json (paste JSON format)```
+```!import (paste JSON format)```
 
 ---
 ## Cringe Functionality
