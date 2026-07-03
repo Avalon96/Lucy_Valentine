@@ -212,6 +212,7 @@ async def add_to_cringe_list(ctx, *, member: discord.Member):
             save_cringe_list()
             await ctx.send(f"You are cringe {ctx.author.display_name}.")
             asyncio.create_task(cringe_list_timeout(ctx.author.id, TIMEOUT, ctx.channel))
+            await show_cringe_list(ctx)
             return
         else:
             await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")

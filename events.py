@@ -3,7 +3,7 @@ import discord
 from discord.ext import tasks
 
 from bot_instance import bot
-import storage
+from storage import cringe_list, custom_commands
 from config import (
     PAT_LUCY,
     HEART,
@@ -41,10 +41,10 @@ async def on_raw_reaction_add(payload):
 
     user = payload.member
 
-    if payload.user_id in storage.cringe_list:
+    if payload.user_id in cringe_list:
         await channel.send(f"{user.mention} Don't touch me!")
-        if "!soraslap" in storage.custom_commands:
-            await channel.send(storage.custom_commands["!soraslap"])
+        if "!soraslap" in custom_commands:
+            await channel.send(custom_commands["!soraslap"])
         return
 
     if user is None:
@@ -62,17 +62,17 @@ async def on_message(message):
     content = message.content
 
     if PAT_LUCY in content:
-        if message.author.id in storage.cringe_list:
+        if message.author.id in cringe_list:
             await message.add_reaction(DISGUST_MELU)
         else:
             await message.add_reaction(HEART)
         return
 
-    if content in storage.custom_commands:
-        if message.author.id in storage.cringe_list:
+    if content in custom_commands:
+        if message.author.id in cringe_list:
             await message.add_reaction(SORA_UNAMUSED)
         else:
-            await message.channel.send(storage.custom_commands[content])
+            await message.channel.send(custom_commands[content])
         return
 
     await bot.process_commands(message)
