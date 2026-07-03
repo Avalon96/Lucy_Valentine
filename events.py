@@ -1,11 +1,17 @@
 import os
-
 import discord
 from discord.ext import tasks
 
 from bot_instance import bot
 import storage
-from config import PAT_LUCY, HEART, DISGUST_MELU, SORA_UNAMUSED, EXPORT_CHANNEL_ID, COMMANDS_FILE
+from config import (
+    PAT_LUCY,
+    HEART,
+    DISGUST_MELU,
+    SORA_UNAMUSED,
+    EXPORT_CHANNEL_ID,
+    COMMANDS_FILE
+)
 
 triggered_reactions = set()
 

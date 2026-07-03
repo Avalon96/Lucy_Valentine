@@ -1,12 +1,23 @@
 import json
 import os
-
 import discord
+import asyncio
 
 from bot_instance import bot
-import storage
-from config import ALLOWED_ROLES, RESERVED_COMMANDS, OVERLORD_ROLE, COMMANDS_FILE
-
+from storage import (
+    save_commands,
+    save_cringe_list,
+    custom_commands,
+    cringe_list
+)
+from config import (
+    ALLOWED_ROLES,
+    OVERLORD_ID,
+    RESERVED_COMMANDS,
+    OVERLORD_ROLE,
+    COMMANDS_FILE,
+    TIMEOUT
+)
 
 # !cmd
 @bot.command(name="cmd")
@@ -21,11 +32,11 @@ async def add_command(ctx, name: str, *, response: str):
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name.")
             return
-        if name in storage.custom_commands:
+        if name in custom_commands:
             await ctx.send(f"Command `{name}` already exists.")
             return
-        storage.custom_commands[name] = response
-        storage.save_commands()
+        custom_commands[name] = response
+        save_commands()
         await ctx.send(f"Saved command `{name}` → `{response}`")
 
 
@@ -56,14 +67,14 @@ async def batch_add_commands(ctx, *, bulk_input: str):
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name.")
             return
-        if name in storage.custom_commands:
+        if name in custom_commands:
             skipped.append(name)
             continue
-        storage.custom_commands[name] = response
+        custom_commands[name] = response
         added.append(name)
 
     if added:
-        storage.save_commands()
+        save_commands()
 
     result = []
     if added:
@@ -86,9 +97,9 @@ async def delete_command(ctx, name: str):
     if not name.startswith("!"):
         await ctx.send("Command name must start with `!`")
         return
-    if name in storage.custom_commands:
-        del storage.custom_commands[name]
-        storage.save_commands()
+    if name in custom_commands:
+        del custom_commands[name]
+        save_commands()
         await ctx.send(f"Removed command `{name}`")
     else:
         await ctx.send(f"Command `{name}` not found")
@@ -97,7 +108,7 @@ async def delete_command(ctx, name: str):
 # !allcmd
 @bot.command(name="allcmd")
 async def show_commands(ctx):
-    sorted_commands = sorted(storage.custom_commands.keys())
+    sorted_commands = sorted(custom_commands.keys())
     embed = discord.Embed(
         title=f"All Commands ({len(sorted_commands)})",
         colour=discord.Color.blue()
@@ -171,14 +182,14 @@ async def import_commands(ctx, *, json_input: str = None):
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name.")
             return
-        if name in storage.custom_commands:
+        if name in custom_commands:
             skipped.append(name)
             continue
-        storage.custom_commands[name] = response
+        custom_commands[name] = response
         added.append(name)
 
     if added:
-        storage.save_commands()
+        save_commands()
 
     result = []
     if added:
@@ -195,16 +206,39 @@ async def import_commands(ctx, *, json_input: str = None):
 @bot.command(name="cringe")
 async def add_to_cringe_list(ctx, *, member: discord.Member):
     if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
-        await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")
-        return
-    if member.id not in storage.cringe_list:
-        storage.cringe_list.append(member.id)
-        storage.save_cringe_list()
-        await ctx.send(f"{member.display_name} added to cringe list.",
-                       allowed_mentions=discord.AllowedMentions(users=False))
+        if member.id == OVERLORD_ID:
+            await ctx.send(f"My master cannot be cringe, he is perfect ❤️")
+            cringe_list.append(ctx.author.id)
+            asyncio.create_task(cringe_list_timeout(ctx.author.id, TIMEOUT, ctx.channel))
+            return
+        else:
+            await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")
+            return
+    if member.id not in cringe_list:
+        cringe_list.append(member.id)
+        save_cringe_list()
+        await ctx.send(f"{member.display_name} is cringe.",
+                       allowed_mentions=discord.AllowedMentions(users=False)
+        )
+        asyncio.create_task(cringe_list_timeout(member.id, TIMEOUT, ctx.channel))
     else:
         await ctx.send(f"{member.display_name} is already in the cringe list.",
-                       allowed_mentions=discord.AllowedMentions(users=False))
+                       allowed_mentions=discord.AllowedMentions(users=False)
+        )
+
+
+# !cringe timeout handler
+async def cringe_list_timeout(user_id, timeout, channel):
+    await asyncio.sleep(timeout)
+    if user_id in cringe_list:
+        cringe_list.remove(user_id)
+        save_cringe_list()
+        member = channel.guild.get_member(user_id)
+        name = member.display_name if member else f"<@{user_id}>"
+        await channel.send(
+            f"{name} isn't cringe anymore.", 
+            allowed_mentions=discord.AllowedMentions(users=False)
+        )
 
 
 # !uncringe
@@ -213,10 +247,10 @@ async def remove_from_cringe_list(ctx, *, member: discord.Member):
     if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
         await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")
         return
-    if member.id in storage.cringe_list:
-        storage.cringe_list.remove(member.id)
-        storage.save_cringe_list()
-        await ctx.send(f"{member.display_name} removed from cringe list.",
+    if member.id in cringe_list:
+        cringe_list.remove(member.id)
+        save_cringe_list()
+        await ctx.send(f"{member.display_name} isn't cringe anymore.",
                        allowed_mentions=discord.AllowedMentions(users=False))
     else:
         await ctx.send(f"{member.display_name} is not in the cringe list.",
@@ -227,10 +261,9 @@ async def remove_from_cringe_list(ctx, *, member: discord.Member):
 @bot.command(name="allcringe")
 async def show_cringe_list(ctx):
     names = []
-    for user_id in storage.cringe_list:
+    for user_id in cringe_list:
         user = await bot.fetch_user(user_id)
         names.append(user.display_name)
-
     sorted_names = sorted(names)
 
     embed = discord.Embed(
@@ -242,7 +275,7 @@ async def show_cringe_list(ctx):
     await ctx.send(embed=embed)
 
 
-# # DEBUG
+# DEBUG
 # @bot.event
 # async def on_command_error(ctx, error):
 #     await ctx.send(f"Error: {error}")
