@@ -195,7 +195,7 @@ async def import_commands(ctx, *, json_input: str = None):
     if added:
         result.append(f"Added ({len(added)}): {', '.join(added)}")
     if skipped:
-        result.append(f"Skipped, already exist ({len(skipped)}): {', '.join(skipped)}")
+        result.append(f"Skipped, already exist ({len(skipped)})")
     if invalid:
         result.append(f"Invalid entries ({len(invalid)}): {', '.join(invalid)}")
 
@@ -207,8 +207,10 @@ async def import_commands(ctx, *, json_input: str = None):
 async def add_to_cringe_list(ctx, *, member: discord.Member):
     if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
         if member.id == OVERLORD_ID:
-            await ctx.send(f"My master cannot be cringe, he is perfect ❤️")
+            await ctx.send("My master cannot be cringe.")
             cringe_list.append(ctx.author.id)
+            save_cringe_list()
+            await ctx.send(f"You are cringe {ctx.author.display_name}.")
             asyncio.create_task(cringe_list_timeout(ctx.author.id, TIMEOUT, ctx.channel))
             return
         else:
