@@ -5,12 +5,13 @@ from discord.ext import tasks
 from bot_instance import bot
 from storage import cringe_list, custom_commands
 from config import (
-    PAT_LUCY,
+    COMMANDS_FILE,
+    BOT_PAT,
     HEART,
     DISGUST_MELU,
     SORA_UNAMUSED,
     EXPORT_CHANNEL_ID,
-    COMMANDS_FILE
+    COMMAND_PREFIX
 )
 
 triggered_reactions = set()
@@ -22,7 +23,7 @@ async def on_raw_reaction_add(payload):
     if payload.user_id == bot.user.id:
         return
 
-    if str(payload.emoji) != PAT_LUCY:
+    if str(payload.emoji) != BOT_PAT:
         return
 
     channel = bot.get_channel(payload.channel_id)
@@ -43,8 +44,8 @@ async def on_raw_reaction_add(payload):
 
     if payload.user_id in cringe_list:
         await channel.send(f"{user.mention} Don't touch me!")
-        if "!soraslap" in custom_commands:
-            await channel.send(custom_commands["!soraslap"])
+        if "soraslap" in custom_commands:
+            await channel.send(custom_commands["soraslap"])
         return
 
     if user is None:
@@ -59,23 +60,26 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    content = message.content
-
-    if PAT_LUCY in content:
+    if BOT_PAT in message.content:
         if message.author.id in cringe_list:
             await message.add_reaction(DISGUST_MELU)
         else:
             await message.add_reaction(HEART)
         return
 
-    if content in custom_commands:
-        if message.author.id in cringe_list:
-            await message.add_reaction(SORA_UNAMUSED)
-        else:
-            await message.channel.send(custom_commands[content])
+    if not message.content.startswith(COMMAND_PREFIX):
         return
+    else:
+        content = message.content[len(COMMAND_PREFIX):]
 
-    await bot.process_commands(message)
+        if content in custom_commands:
+            if message.author.id in cringe_list:
+                await message.add_reaction(SORA_UNAMUSED)
+            else:
+                await message.channel.send(custom_commands[content])
+            return
+
+        await bot.process_commands(message)
 
 
 # Auto Export JSON
@@ -100,5 +104,5 @@ async def before_auto_export():
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
-    if not auto_export.is_running():
-        auto_export.start()
+    # if not auto_export.is_running():
+    #     auto_export.start()

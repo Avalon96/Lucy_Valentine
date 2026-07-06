@@ -25,19 +25,15 @@ async def add_command(ctx, name: str, *, response: str):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
-    if not name.startswith("!"):
-        await ctx.send("Command name must start with `!`")
+    if name in RESERVED_COMMANDS:
+        await ctx.send(f"`{name}` is a reserved command name.")
         return
-    if (name.startswith("!")):
-        if name in RESERVED_COMMANDS:
-            await ctx.send(f"`{name}` is a reserved command name.")
-            return
-        if name in custom_commands:
-            await ctx.send(f"Command `{name}` already exists.")
-            return
-        custom_commands[name] = response
-        save_commands()
-        await ctx.send(f"Saved command `{name}` → `{response}`")
+    if name in custom_commands:
+        await ctx.send(f"Command `{name}` already exists.")
+        return
+    custom_commands[name] = response
+    save_commands()
+    await ctx.send(f"Saved command `{name}` → `{response}`")
 
 
 # !batch
