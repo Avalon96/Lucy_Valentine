@@ -2,6 +2,7 @@ import json
 import os
 import discord
 import asyncio
+from dotenv import load_dotenv
 
 from bot_instance import bot
 from storage import (
@@ -265,7 +266,9 @@ async def show_cringe_list(ctx):
     await ctx.send(embed=embed)
 
 
-# DEBUG
-# @bot.event
-# async def on_command_error(ctx, error):
-#     await ctx.send(f"Error: {error}")
+load_dotenv()
+ENV = os.getenv("ENV", "production")
+if ENV.lower() == "development":
+    @bot.event
+    async def on_command_error(ctx, error):
+        await ctx.send(f"Error: {error}")

@@ -1,6 +1,9 @@
 import os
 import discord
 from discord.ext import tasks
+from datetime import time
+from zoneinfo import ZoneInfo
+
 
 from bot_instance import bot
 from storage import cringe_list, custom_commands
@@ -82,27 +85,24 @@ async def on_message(message):
         await bot.process_commands(message)
 
 
+tz = ZoneInfo("UTC")
 # Auto Export JSON
-@tasks.loop(hours=24)
+@tasks.loop(time=time(hour=0, minute=0, tzinfo=tz))
 async def auto_export():
     channel = bot.get_channel(EXPORT_CHANNEL_ID)
     if channel is None:
         print("Auto-export channel not found.")
         return
+
     if not os.path.exists(COMMANDS_FILE):
         return
+
     await channel.send("Here is your JSON file master ❤️")
     await channel.send(file=discord.File(COMMANDS_FILE))
-
-
-@auto_export.before_loop
-async def before_auto_export():
-    await bot.wait_until_ready()
 
 
 # Check bot online
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
-    if not auto_export.is_running():
-        auto_export.start()
+    auto_export.start()
