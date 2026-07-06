@@ -57,9 +57,6 @@ async def batch_add_commands(ctx, *, bulk_input: str):
             invalid.append(line)
             continue
         name, response = parts
-        if not name.startswith("!"):
-            invalid.append(line)
-            continue
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name.")
             return
@@ -90,9 +87,6 @@ async def delete_command(ctx, name: str):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
 
-    if not name.startswith("!"):
-        await ctx.send("Command name must start with `!`")
-        return
     if name in custom_commands:
         del custom_commands[name]
         save_commands()
@@ -171,9 +165,6 @@ async def import_commands(ctx, *, json_input: str = None):
     for name, response in imported.items():
         if not isinstance(name, str) or not isinstance(response, str):
             invalid.append(str(name))
-            continue
-        if not name.startswith("!"):
-            invalid.append(name)
             continue
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name.")

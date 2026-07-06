@@ -104,5 +104,5 @@ async def before_auto_export():
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
-    # if not auto_export.is_running():
-    #     auto_export.start()
+    if not auto_export.is_running():
+        auto_export.start()
