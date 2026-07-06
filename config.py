@@ -6,15 +6,15 @@ OVERLORD_ROLE = "The Island Owner"
 ALLOWED_ROLES = ("The Island Owner", "Uma Musume Vice Pope")
 
 RESERVED_COMMANDS = {
-    "!cmd",
-    "!batch",
-    "!del",
-    "!allcmd",
-    "!export",
-    "!json",
-    "!cringe",
-    "!uncringe",
-    "!allcringe",
+    "cmd",
+    "batch",
+    "del",
+    "allcmd",
+    "export",
+    "import",
+    "cringe",
+    "uncringe",
+    "allcringe",
 }
 
 COMMANDS_FILE = "custom_commands.json"
