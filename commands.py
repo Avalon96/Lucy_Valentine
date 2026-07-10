@@ -13,6 +13,7 @@ from storage import (
 )
 from config import (
     ALLOWED_ROLES,
+    COMMAND_PREFIX,
     OVERLORD_ID,
     RESERVED_COMMANDS,
     OVERLORD_ROLE,
@@ -32,6 +33,8 @@ async def add_command(ctx, name: str, *, response: str):
     if name in custom_commands:
         await ctx.send(f"Command `{name}` already exists.")
         return
+    if name.startswith(COMMAND_PREFIX):
+        name = name.lstrip(COMMAND_PREFIX)
     custom_commands[name] = response
     save_commands()
     await ctx.send(f"Saved command `{name}` → `{response}`")
@@ -61,6 +64,8 @@ async def batch_add_commands(ctx, *, bulk_input: str):
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name.")
             return
+        if name.startswith(COMMAND_PREFIX):
+            name = name.lstrip(COMMAND_PREFIX)
         if name in custom_commands:
             skipped.append(name)
             continue
