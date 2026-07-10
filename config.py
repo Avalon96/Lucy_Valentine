@@ -9,6 +9,7 @@ RESERVED_COMMANDS = {
     "cmd",
     "batch",
     "del",
+    "batchdel",
     "allcmd",
     "export",
     "import",

@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import discord
@@ -27,14 +28,13 @@ async def add_command(ctx, name: str, *, response: str):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
+    name = name.lstrip(COMMAND_PREFIX)
     if name in RESERVED_COMMANDS:
         await ctx.send(f"`{name}` is a reserved command name.")
         return
     if name in custom_commands:
         await ctx.send(f"Command `{name}` already exists.")
         return
-    if name.startswith(COMMAND_PREFIX):
-        name = name.lstrip(COMMAND_PREFIX)
     custom_commands[name] = response
     save_commands()
     await ctx.send(f"Saved command `{name}` → `{response}`")
@@ -61,11 +61,11 @@ async def batch_add_commands(ctx, *, bulk_input: str):
             invalid.append(line)
             continue
         name, response = parts
+        name = name.lstrip(COMMAND_PREFIX)
         if name in RESERVED_COMMANDS:
-            await ctx.send(f"`{name}` is a reserved command name.")
-            return
-        if name.startswith(COMMAND_PREFIX):
-            name = name.lstrip(COMMAND_PREFIX)
+            await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
+            invalid.append(name)
+            continue
         if name in custom_commands:
             skipped.append(name)
             continue
@@ -93,12 +93,57 @@ async def delete_command(ctx, name: str):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
 
+    name = name.lstrip(COMMAND_PREFIX)
+    if name in RESERVED_COMMANDS:
+        await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
+        return
     if name in custom_commands:
         del custom_commands[name]
         save_commands()
         await ctx.send(f"Removed command `{name}`")
     else:
         await ctx.send(f"Command `{name}` not found")
+
+
+# !batchdel
+@bot.command(name="batchdel")
+async def batch_delete_commands(ctx, *, bulk_input: str):
+    if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
+        await ctx.send(f"Only {OVERLORD_ROLE} can use this command.")
+        return
+    
+    lines = bulk_input.strip().splitlines()
+    deleted = []
+    not_found = []
+    invalid = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        name = line.lstrip(COMMAND_PREFIX)
+        if name in RESERVED_COMMANDS:
+            await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
+            invalid.append(name)
+            continue
+        if name not in custom_commands:
+            not_found.append(name)
+        else:
+            del custom_commands[name]
+            deleted.append(name)
+
+    if deleted:
+        save_commands()
+
+    result = []
+    if deleted:
+        result.append(f"Deleted ({len(deleted)}): {', '.join(deleted)}")
+    if not_found:
+        result.append(f"Not found ({len(not_found)}): {', '.join(not_found)}")
+    if invalid:
+        result.append(f"Invalid lines ({len(invalid)}): {', '.join(invalid)}")
+
+    await ctx.send("\n".join(result) if result else "Nothing to delete.")
 
 
 # !allcmd
@@ -122,13 +167,23 @@ async def show_commands(ctx):
 
 # !export
 @bot.command(name="export")
-async def export_command_json(ctx):
+async def export_command_json(ctx, *, flag: str = None):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
     if not os.path.exists(COMMANDS_FILE):
         await ctx.send("No commands file found yet.")
         return
+
+    if flag and flag.strip() == "--key":
+        if not custom_commands:
+            await ctx.send("No commands to export.")
+            return
+        keys_text = "\n".join(custom_commands.keys())
+        buffer = io.BytesIO(keys_text.encode("utf-8"))
+        await ctx.send("Here are your command names master ❤️", file=discord.File(buffer, filename="commands.txt"))
+        return
+
     await ctx.send("Here is your JSON file master ❤️")
     await ctx.send(file=discord.File(COMMANDS_FILE))
 
@@ -140,7 +195,15 @@ async def import_commands(ctx, *, json_input: str = None):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
 
-    # Support either a pasted JSON string or an attached .json file
+    overwrite = False
+    if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
+        await ctx.send(f"Only the {OVERLORD_ROLE} can use --overwrite.")
+        return
+    else:
+        if json_input and json_input.strip().startswith("--overwrite"):
+            overwrite = True
+            json_input = json_input.strip()[len("--overwrite"):].strip() or None
+
     raw_data = None
     if ctx.message.attachments:
         attachment = ctx.message.attachments[0]
@@ -151,7 +214,8 @@ async def import_commands(ctx, *, json_input: str = None):
     elif json_input:
         raw_data = json_input
     else:
-        await ctx.send("Provide JSON as text after the command, or attach a `.json` file.")
+        await ctx.send("Provide JSON as text after the command, or attach a `.json` file."
+                       "Use `--overwrite` to replace all existing commands.")
         return
 
     try:
@@ -159,39 +223,46 @@ async def import_commands(ctx, *, json_input: str = None):
     except json.JSONDecodeError as e:
         await ctx.send(f"Invalid JSON: {e}")
         return
-
     if not isinstance(imported, dict):
         await ctx.send("JSON must be an object of `\"!name\": \"response\"` pairs.")
         return
 
     added = []
-    skipped = []
     invalid = []
-
+    valid_entries = {}
     for name, response in imported.items():
-        if not isinstance(name, str) or not isinstance(response, str):
-            invalid.append(str(name))
-            continue
         if name in RESERVED_COMMANDS:
-            await ctx.send(f"`{name}` is a reserved command name.")
-            return
-        if name in custom_commands:
-            skipped.append(name)
+            invalid.append(name)
             continue
-        custom_commands[name] = response
+        valid_entries[name] = response
         added.append(name)
 
-    if added:
+    if overwrite:
+        custom_commands.clear()
+        custom_commands.update(valid_entries)
+    else:
+        skipped = []
+        added = []
+        for name, response in valid_entries.items():
+            if name in custom_commands:
+                skipped.append(name)
+                continue
+            custom_commands[name] = response
+            added.append(name)
+
+    if added or overwrite:
         save_commands()
 
     result = []
-    if added:
-        result.append(f"Added ({len(added)}): {', '.join(added)}")
-    if skipped:
-        result.append(f"Skipped, already exist ({len(skipped)})")
+    if overwrite:
+        result.append(f"Cleared existing commands and imported {len(added)}: {', '.join(added)}")
+    else:
+        if added:
+            result.append(f"Added ({len(added)}): {', '.join(added)}")
+        if skipped:
+            result.append(f"Skipped, already exist ({len(skipped)}): {', '.join(skipped)}")
     if invalid:
         result.append(f"Invalid entries ({len(invalid)}): {', '.join(invalid)}")
-
     await ctx.send("\n".join(result) if result else "Nothing to import.")
 
 
