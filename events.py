@@ -73,7 +73,7 @@ async def on_message(message):
     if not message.content.startswith(COMMAND_PREFIX):
         return
     else:
-        content = message.content[len(COMMAND_PREFIX):]
+        content = message.content[len(COMMAND_PREFIX):].lower()
 
         if content in custom_commands:
             if message.author.id in cringe_list:

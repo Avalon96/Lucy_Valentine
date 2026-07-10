@@ -28,7 +28,7 @@ async def add_command(ctx, name: str, *, response: str):
     if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
-    name = name.lstrip(COMMAND_PREFIX)
+    name = name.lstrip(COMMAND_PREFIX).lower()
     if name in RESERVED_COMMANDS:
         await ctx.send(f"`{name}` is a reserved command name.")
         return
@@ -61,7 +61,7 @@ async def batch_add_commands(ctx, *, bulk_input: str):
             invalid.append(line)
             continue
         name, response = parts
-        name = name.lstrip(COMMAND_PREFIX)
+        name = name.lstrip(COMMAND_PREFIX).lower()
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
             invalid.append(name)
@@ -93,7 +93,7 @@ async def delete_command(ctx, name: str):
         await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
         return
 
-    name = name.lstrip(COMMAND_PREFIX)
+    name = name.lstrip(COMMAND_PREFIX).lower()
     if name in RESERVED_COMMANDS:
         await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
         return
@@ -121,7 +121,7 @@ async def batch_delete_commands(ctx, *, bulk_input: str):
         line = line.strip()
         if not line:
             continue
-        name = line.lstrip(COMMAND_PREFIX)
+        name = line.lstrip(COMMAND_PREFIX).lower()
         if name in RESERVED_COMMANDS:
             await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
             invalid.append(name)
@@ -175,7 +175,7 @@ async def export_command_json(ctx, *, flag: str = None):
         await ctx.send("No commands file found yet.")
         return
 
-    if flag and flag.strip() == "--key":
+    if flag and flag.strip().lower() == "--key":
         if not custom_commands:
             await ctx.send("No commands to export.")
             return
@@ -200,7 +200,7 @@ async def import_commands(ctx, *, json_input: str = None):
         await ctx.send(f"Only the {OVERLORD_ROLE} can use --overwrite.")
         return
     else:
-        if json_input and json_input.strip().startswith("--overwrite"):
+        if json_input and json_input.strip().lower().startswith("--overwrite"):
             overwrite = True
             json_input = json_input.strip()[len("--overwrite"):].strip() or None
 
@@ -231,6 +231,7 @@ async def import_commands(ctx, *, json_input: str = None):
     invalid = []
     valid_entries = {}
     for name, response in imported.items():
+        name = name.lstrip(COMMAND_PREFIX).lower()
         if name in RESERVED_COMMANDS:
             invalid.append(name)
             continue
@@ -281,6 +282,7 @@ async def add_to_cringe_list(ctx, *, member: discord.Member):
         else:
             await ctx.send(f"Only {OVERLORD_ROLE} can decide whether someone is cringe or not.")
             return
+
     if member.id not in cringe_list:
         cringe_list.append(member.id)
         save_cringe_list()
