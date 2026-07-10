@@ -15,14 +15,23 @@ Possible interactions Lucy will respond to are:
 ### Add Multiple Commands
 ```
 <command_prefix>batch
-<command_prefix><command_name> <response>
-<command_prefix><command_name2> <response2>
-<command_prefix><command_name3> <response3>
+<command_name> <response>
+<command_name2> <response2>
+<command_name3> <response3> 
 ...
 ```
 
 ### Delete Command
 ```<command_prefix>del <command_name>```
+
+### Delete Multiple Commands
+```
+<command_prefix>batchdel
+<command_name>
+<command_name2>
+<command_name3> 
+...
+```
 
 ### Show All Commands
 ```<command_prefix>allcmd```
@@ -32,10 +41,16 @@ Possible interactions Lucy will respond to are:
 ### Export Commands JSON File
 ```<command_prefix>export```
 
+Add --key flag to export only the command names, useful for !batchdel
+
+```<command_prefix>export --key```
+
 ### Import Multiple Commands from a JSON File
 ```<command_prefix>import (attach JSON file)```
 
-```<command_prefix>import (paste JSON format)```
+Add --overwrite flag to replace the custom_commands file
+
+```<command_prefix>import --overwrite (attach JSON file)```
 
 ---
 ## Cringe Functionality
