@@ -5,15 +5,12 @@ from discord.ext import tasks
 from datetime import time
 from zoneinfo import ZoneInfo
 
-
 from bot_instance import bot
 from storage import cringe_list, custom_commands
 from config import (
     COMMANDS_FILE,
     BOT_PAT,
     HEART,
-    DISGUST_MELU,
-    SORA_UNAMUSED,
     EXPORT_CHANNEL_ID,
     COMMAND_PREFIX,
     CRINGE_REACTION_EMOJIS
@@ -27,11 +24,9 @@ triggered_reactions = set()
 async def on_raw_reaction_add(payload):
     if payload.user_id == bot.user.id:
         return
-
     channel = bot.get_channel(payload.channel_id)
     if channel is None:
         return
-
     message = await channel.fetch_message(payload.message_id)
 
     if payload.user_id in cringe_list:
@@ -49,21 +44,12 @@ async def on_raw_reaction_add(payload):
         return
     if message.author.id != bot.user.id:
         return
-
     key = (payload.user_id, payload.message_id)
     if key in triggered_reactions:
         return
-
     triggered_reactions.add(key)
 
     user = payload.member
-
-    if payload.user_id in cringe_list:
-        await channel.send(f"{user.mention} Don't touch me!")
-        if "soraslap" in custom_commands:
-            await channel.send(custom_commands["soraslap"])
-        return
-
     if user is None:
         user = await bot.fetch_user(payload.user_id)
 
@@ -76,28 +62,22 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    is_cringe_user = message.author.id in cringe_list
+    if message.author.id in cringe_list:
+        await message.add_reaction(random.choice(CRINGE_REACTION_EMOJIS))
+        return
 
     if BOT_PAT in message.content:
-        if is_cringe_user:
-            await message.add_reaction(DISGUST_MELU)
-        else:
-            await message.add_reaction(HEART)
+        await message.add_reaction(HEART)
         return
 
     if not message.content.startswith(COMMAND_PREFIX):
-        if is_cringe_user:
-            await message.add_reaction(random.choice(CRINGE_REACTION_EMOJIS))
         return
 
-    content = message.content[len(COMMAND_PREFIX):].lower()
-
-    if content in custom_commands:
-        if is_cringe_user:
-            await message.add_reaction(SORA_UNAMUSED)
-        else:
+    if message.content.startswith(COMMAND_PREFIX):
+        content = message.content[len(COMMAND_PREFIX):].lower()
+        if content in custom_commands:
             await message.channel.send(custom_commands[content])
-        return
+            return
 
     await bot.process_commands(message)
 
