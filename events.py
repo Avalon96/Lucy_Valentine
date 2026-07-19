@@ -1,4 +1,5 @@
 import os
+import random
 import discord
 from discord.ext import tasks
 from datetime import time
@@ -14,7 +15,8 @@ from config import (
     DISGUST_MELU,
     SORA_UNAMUSED,
     EXPORT_CHANNEL_ID,
-    COMMAND_PREFIX
+    COMMAND_PREFIX,
+    CRINGE_REACTION_EMOJIS
 )
 
 triggered_reactions = set()
@@ -26,14 +28,25 @@ async def on_raw_reaction_add(payload):
     if payload.user_id == bot.user.id:
         return
 
-    if str(payload.emoji) != BOT_PAT:
-        return
-
     channel = bot.get_channel(payload.channel_id)
     if channel is None:
         return
 
     message = await channel.fetch_message(payload.message_id)
+
+    if payload.user_id in cringe_list:
+        member = payload.member or (message.guild.get_member(payload.user_id) if message.guild else None)
+        if member is None:
+            member = await bot.fetch_user(payload.user_id)
+
+        try:
+            await message.remove_reaction(payload.emoji, member)
+        except (discord.Forbidden, discord.NotFound):
+            pass
+        return
+
+    if str(payload.emoji) != BOT_PAT:
+        return
     if message.author.id != bot.user.id:
         return
 
@@ -63,26 +76,30 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    is_cringe_user = message.author.id in cringe_list
+
     if BOT_PAT in message.content:
-        if message.author.id in cringe_list:
+        if is_cringe_user:
             await message.add_reaction(DISGUST_MELU)
         else:
             await message.add_reaction(HEART)
         return
 
     if not message.content.startswith(COMMAND_PREFIX):
+        if is_cringe_user:
+            await message.add_reaction(random.choice(CRINGE_REACTION_EMOJIS))
         return
-    else:
-        content = message.content[len(COMMAND_PREFIX):].lower()
 
-        if content in custom_commands:
-            if message.author.id in cringe_list:
-                await message.add_reaction(SORA_UNAMUSED)
-            else:
-                await message.channel.send(custom_commands[content])
-            return
+    content = message.content[len(COMMAND_PREFIX):].lower()
 
-        await bot.process_commands(message)
+    if content in custom_commands:
+        if is_cringe_user:
+            await message.add_reaction(SORA_UNAMUSED)
+        else:
+            await message.channel.send(custom_commands[content])
+        return
+
+    await bot.process_commands(message)
 
 
 tz = ZoneInfo("UTC")
