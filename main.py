@@ -4,8 +4,10 @@ import os
 from dotenv import load_dotenv
 
 from bot_instance import bot
-import commands   # noqa: F401  (registers !cmd, !batch, !del, !allcmd, !export, !json, !cringe, !uncringe, !allcringe)
-import events     # noqa: F401  (registers on_message, on_raw_reaction_add, on_ready, auto_export)
+import commands
+import events
+import cringe
+
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
