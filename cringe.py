@@ -1,9 +1,11 @@
 import discord
 import asyncio
+import os
+from dotenv import load_dotenv
 
 from bot_instance import bot
 from storage import cringe_list, save_cringe_list
-from config import OVERLORD_ROLE, OVERLORD_ID, TIMEOUT
+from config import EXPORT_CHANNEL_ID, OVERLORD_ROLE, OVERLORD_ID, TIMEOUT
 
 # !cringe
 @bot.command(name="cringe")
@@ -80,3 +82,43 @@ async def show_cringe_list(ctx):
     )
 
     await ctx.send(embed=embed)
+
+# Block Ping
+load_dotenv()
+ENV = os.getenv("ENV", "production")
+
+@bot.event
+async def on_automod_action(execution: discord.AutoModAction):
+    # Fetch the actual channel object using the ID
+    export_channel = bot.get_channel(EXPORT_CHANNEL_ID)
+    if ENV.lower() == "development":
+        await export_channel.send("AutoMod action detected.")
+
+    if execution.action.type == discord.AutoModRuleActionType.block_message:
+        if ENV.lower() == "development":
+            await export_channel.send("Message blocked due to ping.")
+            
+        author_id = execution.user_id
+
+        if author_id not in cringe_list:
+            if ENV.lower() == "development":
+                await export_channel.send("Adding user to cringe list.")
+
+            cringe_list.append(author_id)
+            save_cringe_list()
+
+            channel = execution.channel
+            member = execution.member
+
+            if channel and member:
+                if ENV.lower() == "development":
+                    await export_channel.send("Sending cringe message to channel.")
+
+                await channel.send(
+                    f"{member.display_name} is cringe.",
+                    allowed_mentions=discord.AllowedMentions(users=False)
+                )
+                asyncio.create_task(cringe_list_timeout(author_id, TIMEOUT, channel))
+                
+    if ENV.lower() == "development":
+        await export_channel.send("End of Block Ping rule triggered.")

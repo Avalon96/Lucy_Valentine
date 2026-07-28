@@ -62,7 +62,7 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    if message.author.id in cringe_list:
+    if message.author.id in cringe_list and message.channel.id != EXPORT_CHANNEL_ID:
         await message.add_reaction(random.choice(CRINGE_REACTION_EMOJIS))
         return
 

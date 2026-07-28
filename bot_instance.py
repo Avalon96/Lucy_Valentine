@@ -5,6 +5,7 @@ from config import COMMAND_PREFIX
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.auto_moderation_execution = True
 intents.members = True
 
 bot = commands.Bot(
