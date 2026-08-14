@@ -14,11 +14,9 @@ from storage import (
 from config import (
     ALLOWED_ROLES,
     COMMAND_PREFIX,
-    OVERLORD_ID,
     RESERVED_COMMANDS,
     OVERLORD_ROLE,
-    COMMANDS_FILE,
-    TIMEOUT
+    COMMANDS_FILE
 )
 
 # !cmd
