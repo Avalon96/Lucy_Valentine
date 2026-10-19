@@ -2,7 +2,7 @@ import io
 import json
 import os
 import discord
-from dotenv import load_dotenv
+from discord.ext.commands import Bot, CheckFailure, check
 
 from bot_instance import bot
 from storage import (
@@ -16,15 +16,30 @@ from config import (
     COMMAND_PREFIX,
     RESERVED_COMMANDS,
     OVERLORD_ROLE,
-    COMMANDS_FILE
+    COMMANDS_FILE,
+    ENV
 )
+
+
+def has_any_role(member, *role_names):
+    return any(role.name in role_names for role in member.roles)
+
+
+def requires_roles(*role_names):
+    """Only let members with one of these roles run the command, telling everyone else who can."""
+    async def predicate(ctx):
+        if has_any_role(ctx.author, *role_names):
+            return True
+        who = f"{' and '.join(role_names)}s" if len(role_names) > 1 else role_names[0]
+        await ctx.send(f"Only {who} can use this command.")
+        return False
+    return check(predicate)
+
 
 # !cmd
 @bot.command(name="cmd")
+@requires_roles(*ALLOWED_ROLES)
 async def add_command(ctx, name: str, *, response: str):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
-        return
     name = name.lstrip(COMMAND_PREFIX).lower()
     if name in RESERVED_COMMANDS:
         await ctx.send(f"`{name}` is a reserved command name.")
@@ -39,11 +54,8 @@ async def add_command(ctx, name: str, *, response: str):
 
 # !batch
 @bot.command(name="batch")
+@requires_roles(*ALLOWED_ROLES)
 async def batch_add_commands(ctx, *, bulk_input: str):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
-        return
-
     lines = bulk_input.strip().splitlines()
     added = []
     skipped = []
@@ -60,7 +72,7 @@ async def batch_add_commands(ctx, *, bulk_input: str):
         name, response = parts
         name = name.lstrip(COMMAND_PREFIX).lower()
         if name in RESERVED_COMMANDS:
-            await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
+            await ctx.send(f"`{name}` is a reserved command name and cannot be added.")
             invalid.append(name)
             continue
         if name in custom_commands:
@@ -85,11 +97,8 @@ async def batch_add_commands(ctx, *, bulk_input: str):
 
 # !del
 @bot.command(name="del")
+@requires_roles(*ALLOWED_ROLES)
 async def delete_command(ctx, name: str):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
-        return
-
     name = name.lstrip(COMMAND_PREFIX).lower()
     if name in RESERVED_COMMANDS:
         await ctx.send(f"`{name}` is a reserved command name and cannot be deleted.")
@@ -104,10 +113,8 @@ async def delete_command(ctx, name: str):
 
 # !batchdel
 @bot.command(name="batchdel")
+@requires_roles(OVERLORD_ROLE)
 async def batch_delete_commands(ctx, *, bulk_input: str):
-    if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
-        await ctx.send(f"Only {OVERLORD_ROLE} can use this command.")
-        return
     
     lines = bulk_input.strip().splitlines()
     deleted = []
@@ -147,27 +154,36 @@ async def batch_delete_commands(ctx, *, bulk_input: str):
 @bot.command(name="allcmd")
 async def show_commands(ctx):
     sorted_commands = sorted(custom_commands.keys())
-    embed = discord.Embed(
-        title=f"All Commands ({len(sorted_commands)})",
-        colour=discord.Color.blue()
-    )
+    if not sorted_commands:
+        await ctx.send("No commands yet.")
+        return
 
-    columns = 3
-    chunk_size = -(-len(sorted_commands) // columns)  # ceiling division
-    chunks = [sorted_commands[i:i + chunk_size] for i in range(0, len(sorted_commands), chunk_size)]
+    # Split into 3 columns, starting extra columns if one would pass Discord's 1024-char field limit
+    per_column = -(-len(sorted_commands) // 3)
+    columns = [[]]
+    column_length = 0
+    for name in sorted_commands:
+        if columns[-1] and (len(columns[-1]) >= per_column or column_length + len(name) + 1 > 1024):
+            columns.append([])
+            column_length = 0
+        columns[-1].append(name)
+        column_length += len(name) + 1
 
-    for chunk in chunks:
-        embed.add_field(name="\u200b", value="\n".join(chunk), inline=True)
-
-    await ctx.send(embed=embed)
+    # 3 columns per embed keeps each message under Discord's 6000-char embed limit
+    for i in range(0, len(columns), 3):
+        embed = discord.Embed(
+            title=f"All Commands ({len(sorted_commands)})" if i == 0 else None,
+            colour=discord.Color(0xAD9FF0)
+        )
+        for column in columns[i:i + 3]:
+            embed.add_field(name="\u200b", value="\n".join(column), inline=True)
+        await ctx.send(embed=embed)
 
 
 # !export
 @bot.command(name="export")
+@requires_roles(*ALLOWED_ROLES)
 async def export_command_json(ctx, *, flag: str = None):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
-        return
     if not os.path.exists(COMMANDS_FILE):
         await ctx.send("No commands file found yet.")
         return
@@ -187,19 +203,15 @@ async def export_command_json(ctx, *, flag: str = None):
 
 # !import
 @bot.command(name="import")
+@requires_roles(*ALLOWED_ROLES)
 async def import_commands(ctx, *, json_input: str = None):
-    if not any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
-        await ctx.send(f"Only {' and '.join(ALLOWED_ROLES)}s can use this command.")
-        return
-
     overwrite = False
-    if not any(role.name == OVERLORD_ROLE for role in ctx.author.roles):
-        await ctx.send(f"Only the {OVERLORD_ROLE} can use --overwrite.")
-        return
-    else:
-        if json_input and json_input.strip().lower().startswith("--overwrite"):
-            overwrite = True
-            json_input = json_input.strip()[len("--overwrite"):].strip() or None
+    if json_input and json_input.strip().lower().startswith("--overwrite"):
+        if not has_any_role(ctx.author, OVERLORD_ROLE):
+            await ctx.send(f"Only the {OVERLORD_ROLE} can use --overwrite.")
+            return
+        overwrite = True
+        json_input = json_input.strip()[len("--overwrite"):].strip() or None
 
     raw_data = None
     if ctx.message.attachments:
@@ -264,9 +276,11 @@ async def import_commands(ctx, *, json_input: str = None):
     await ctx.send("\n".join(result) if result else "Nothing to import.")
 
 
-load_dotenv()
-ENV = os.getenv("ENV", "production")
-if ENV.lower() == "development":
-    @bot.event
-    async def on_command_error(ctx, error):
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, CheckFailure):
+        return  # requires_roles already replied
+    if ENV == "development":
         await ctx.send(f"Error: {error}")
+    else:
+        await Bot.on_command_error(bot, ctx, error)  # discord.py's default: log the error

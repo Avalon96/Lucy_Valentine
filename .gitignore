@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 discord.log
 *.json
+.last_export_hash
+*.tmp

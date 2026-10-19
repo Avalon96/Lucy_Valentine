@@ -20,8 +20,11 @@ RESERVED_COMMANDS = {
 
 COMMANDS_FILE = "custom_commands.json"
 CRINGE_FILE = "cringe_list.json"
+EXPORT_HASH_FILE = ".last_export_hash"
 
-load_dotenv()  
+load_dotenv()
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+ENV = os.getenv("ENV", "production").lower()
 BOT_NAME = os.getenv("BOT_NAME", "Lucy")
 CONFIG = {
     "Lucy": {
